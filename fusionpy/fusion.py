@@ -54,9 +54,29 @@ class Fusion:
 
         return rd["initMeta"] is not None
 
+    def ensure_config(self, collections=None, queryPipelines=None, indexPipelines=None):
+        """
+        Idempotent initialization of the configuration according to params
+        :param collections: a list of collection configurations. see fusioncollection.FusionCollection.createCollection
+        :param queryPipelines: a list of query pipelines
+        :param indexPipelines: a list of index pipelines
+        :return: self
+        """
+        assert(self.ping(), "Configure the admin password")
+        if collections is not None:
+            for c,ccfg in collections.iteritems():
+                self.get_collection(c).ensure_collection(**ccfg)
+
+        if queryPipelines is not None:
+            pass
+        if indexPipelines is not None:
+            pass
+
+        return self
+
     def get_collection(self, collection=None):
         """Return a FusionCollection for querying, posting, and such"""
-        if collection is None:
+        if collection is None or collection == "__default":
             collection = self.default_collection
         return FusionCollection(self, collection)
 
