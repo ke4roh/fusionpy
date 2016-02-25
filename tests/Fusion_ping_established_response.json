@@ -1,0 +1,1 @@
+{"version":"local","enabledRealms":["native"],"initMeta":{"version":"local","initializedAt":"2016-02-25T03:31:45Z"},"startTime":"2016-02-25T03:29:55Z","status":{"knownServiceNodes":["127.0.0.1:8766","127.0.0.1:8984","127.0.0.1:8765"],"connectors":{"ping":true},"apollo":{"ping":true},"apolloZk":{"ping":true},"db":{"ping":true}}}

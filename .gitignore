@@ -1,0 +1,6 @@
+**/*.pyc
+dist
+build
+fusionpy.egg-info
+.eggs
+.idea
