@@ -1,8 +1,6 @@
 #!/usr/bin/python
 from __future__ import print_function
-import urllib3
 
-http = urllib3.PoolManager()
 __all__ = ['Fusion', 'FusionCollection', 'FusionError']
 
 

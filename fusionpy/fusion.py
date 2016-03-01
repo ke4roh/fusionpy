@@ -1,7 +1,6 @@
 #!/usr/bin/python
 from __future__ import print_function
 import os
-import sys
 import json
 import urllib3
 from urlparse import urlparse
@@ -9,20 +8,21 @@ from base64 import b64encode
 import fusionpy
 from fusionpy.fusioncollection import FusionCollection
 
-# Keep up with just one connection pool
-http = fusionpy.http
-
-
 class Fusion:
-    def __init__(self, fusion_url=None):
+    def __init__(self, fusion_url=None, urllib3_pool_manager=None):
         """
         :param fusion_url: The URL to a collection in Fusion, None to use os.environ["FUSION_API_COLLECTION_URL"]
+        :param urllib3_pool_manager: urllib3.PoolManager() by default.  Anything duckwise-compatible.
         :return: a Fusion object whose ping responds successfully
         """
         if fusion_url is None:
             fusion_url = os.environ.get('FUSION_API_COLLECTION_URL',
                                         'http://admin:topSecret5@localhost:8764/api/apollo/collections/mycollection')
-        fusion_url_parsed = urlparse(fusion_url)
+        if urllib3_pool_manager is None:
+            self.http = urllib3.PoolManager()
+        else:
+            self.http = urllib3_pool_manager
+        self.fusion_url_parsed = fusion_url_parsed = urlparse(fusion_url)
         self.hostname = fusion_url_parsed.hostname
         self.port = fusion_url_parsed.port
         self.url = '%s://%s:%d' % (fusion_url_parsed.scheme, self.hostname, self.port)
@@ -37,7 +37,7 @@ class Fusion:
             the server doesn't respond or all its services aren't working correctly.
         """
         try:
-            resp = http.request('GET', self.url + '/api')
+            resp = self.http.request('GET', self.url + '/api')
         except urllib3.exceptions.MaxRetryError as mre:
             raise fusionpy.FusionError(None, message="Fusion port 8764 isn't working. " + str(mre))
 
@@ -62,9 +62,9 @@ class Fusion:
         :param indexPipelines: a list of index pipelines
         :return: self
         """
-        assert(self.ping(), "Configure the admin password")
+        assert self.ping(), "Configure the admin password"
         if collections is not None:
-            for c,ccfg in collections.iteritems():
+            for c, ccfg in collections.iteritems():
                 self.get_collection(c).ensure_collection(**ccfg)
 
         if queryPipelines is not None:
@@ -79,6 +79,21 @@ class Fusion:
         if collection is None or collection == "__default":
             collection = self.default_collection
         return FusionCollection(self, collection)
+
+    def set_admin_password(self, password=None):
+        if password is None:
+            if self.fusion_url_parsed.username == "admin":
+                password = self.fusion_url_parsed.password
+            else:
+                raise fusionpy.FusionError(None, message="No admin password supplied")
+
+        url = self.url + '/api'
+        headers = {"Content-Type": "application/json"}
+        body = json.dumps({"password": password})
+        resp = self.http.request('POST', url, headers=headers,
+                                 body=body)
+        if resp.status != 201:
+            raise fusionpy.FusionError(resp)
 
     def add_query_pipelines(self, queryPipeline):
         # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Query-Pipelines-API.html

@@ -16,6 +16,7 @@ class FusionCollection:
         self.fusion_instance = fusion_instance
         self.collection_name = collection_name
         self.collection_data = None
+        self.http = fusion_instance.http
 
     def __request(self, method, path, headers=None, fields=None, body=None):
         """
@@ -43,7 +44,7 @@ class FusionCollection:
             body = json.dumps(body)
 
         url = self.fusion_instance.api_url + path
-        resp = fusionpy.http.request(method, url, headers=h, fields=fields, body=body)
+        resp = self.http.request(method, url, headers=h, fields=fields, body=body)
 
         if resp.status < 200 or resp.status > 299:
             raise fusionpy.FusionError(resp, url=url)
@@ -92,8 +93,8 @@ class FusionCollection:
                     self.set_config_file(basename, fh.read())
 
         # Update field types
+        old_schema = self.schema()
         if "fieldTypes" in schema:
-            old_schema = self.schema()
             old_field_types_map = {}
             for old_ft in old_schema["fieldTypes"]:
                 old_field_types_map[old_ft["name"]] = old_ft
