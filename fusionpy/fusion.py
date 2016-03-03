@@ -5,7 +5,7 @@ import json
 import urllib3
 from urlparse import urlparse
 from base64 import b64encode
-import fusionpy
+from fusionpy import FusionError
 from fusionpy.fusioncollection import FusionCollection
 
 SYS_IX_PIPELINES_START = ['_aggr', '_signals_ingest', '_system']
@@ -42,10 +42,10 @@ class Fusion:
         try:
             resp = self.http.request('GET', self.url + '/api')
         except urllib3.exceptions.MaxRetryError as mre:
-            raise fusionpy.FusionError(None, message="Fusion port %d isn't working. %s" % (self.port, str(mre)))
+            raise FusionError(None, message="Fusion port %d isn't working. %s" % (self.port, str(mre)))
 
         if resp.status > 200:
-            raise fusionpy.FusionError(resp, message="Fusion is not responding to status checks.")
+            raise FusionError(resp, message="Fusion is not responding to status checks.")
 
         rd = json.loads(resp.data)
         for thing, stats in rd["status"].items():
@@ -53,7 +53,7 @@ class Fusion:
             if "ping" in stats and not stats["ping"]:
                 notworking.append(thing)
             if len(notworking) > 0:
-                raise fusionpy.FusionError(resp, "Fusion services %s are not working." % str(notworking))
+                raise FusionError(resp, "Fusion services %s are not working." % str(notworking))
 
         return rd["initMeta"] is not None
 
@@ -88,7 +88,7 @@ class Fusion:
             if self.fusion_url_parsed.username == "admin":
                 password = self.fusion_url_parsed.password
             else:
-                raise fusionpy.FusionError(None, message="No admin password supplied")
+                raise FusionError(None, message="No admin password supplied")
 
         url = self.url + '/api'
         headers = {"Content-Type": "application/json"}
@@ -96,7 +96,7 @@ class Fusion:
         resp = self.http.request('POST', url, headers=headers,
                                  body=body)
         if resp.status != 201:
-            raise fusionpy.FusionError(resp)
+            raise FusionError(resp)
 
     def __request(self, method, path, headers=None, fields=None, body=None):
         """
@@ -127,7 +127,7 @@ class Fusion:
         resp = self.http.request(method, url, headers=h, fields=fields, body=body)
 
         if resp.status < 200 or resp.status > 299:
-            raise fusionpy.FusionError(resp, url=url)
+            raise FusionError(resp, url=url)
         return resp
 
     def get_index_pipelines(self, include_system=False):

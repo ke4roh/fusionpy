@@ -1,7 +1,7 @@
 #!/usr/bin/python
 from __future__ import print_function
 import json
-import fusionpy
+from fusionpy import FusionError
 from urllib import urlencode
 
 __author__ = 'jscarbor'
@@ -26,7 +26,7 @@ class FusionCollection:
         try:
             resp = self.__request('GET', "collections/" + self.collection_name)
             return True
-        except fusionpy.FusionError as fe:
+        except FusionError as fe:
             if fe.response.status == 404:
                 return False
             else:
@@ -98,7 +98,7 @@ class FusionCollection:
         resp = json.loads(self.__request('GET', "collections/%s/solr-config" % self.collection_name))
         rd = json.loads(resp.data)
         if "errors" in rd:
-            raise fusionpy.FusionError(resp)
+            raise FusionError(resp)
         return rd
 
     def get_config_file(self, filename):
@@ -117,7 +117,7 @@ class FusionCollection:
             if oldfile == contents:
                 # no change needed
                 return
-        except fusionpy.FusionError as e:
+        except FusionError as e:
             if e.response.status == 404:
                 # POST a new file
                 method = 'POST'
@@ -165,7 +165,7 @@ class FusionCollection:
                               "solr/%s/schema" % self.collection_name,
                               body={action: field_descriptor})
         if "errors" in json.loads(resp.data):
-            raise fusionpy.FusionError(resp)
+            raise FusionError(resp)
 
         return self
 
@@ -231,7 +231,7 @@ class FusionCollection:
                               )
         wrote = len(json.loads(resp.data))
         if wrote != len(docs):
-            raise fusionpy.FusionError(resp,
+            raise FusionError(resp,
                                        message="Submitted %d documents to index, but wrote %d" % (len(docs), wrote))
 
     def schema(self):
