@@ -198,12 +198,14 @@ class FusionCollection:
 
         return self
 
-    def create_collection(self, collection_config={"solrParams": {"replicationFactor": 1, "numShards": 1}}):
+    def create_collection(self, collection_config=None):
         """
         Create this collection
         :param collection_config: a dict with parameters per https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Collections-API.html#CollectionsAPI-Create,List,UpdateorDeleteCollections
         :return: self, or if the collection already exists, FusionError
         """
+        if collection_config is None:
+            collection_config = {"solrParams": {"replicationFactor": 1, "numShards": 1}}
         self.__request('PUT',
                        "collections/" + self.collection_name, body=collection_config)
         return self
@@ -235,12 +237,16 @@ class FusionCollection:
 
         return json.loads(resp.data)
 
-    def query(self, handler="select", pipeline="default", qparams={}, **__qp1):
+    def query(self, handler="select", pipeline="default", qparams=None, **__qp1):
+        if qparams is None:
+            qparams = {}
         qparams.update(__qp1)
         return self.__query(qurl='query-pipelines/%s/collections/%s' % (pipeline, self.collection_name),
                             handler=handler, qparams=qparams)
 
-    def solrquery(self, handler="select", qparams={}, **__qp1):
+    def solrquery(self, handler="select", qparams=None, **__qp1):
+        if qparams is None:
+            qparams = {}
         qparams.update(__qp1)
         return self.__query(qurl='solr/%s' % self.collection_name, handler=handler, qparams=qparams)
 
