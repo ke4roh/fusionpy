@@ -167,8 +167,7 @@ class Fusion:
 
     def add_query_pipeline(self, queryPipeline):
         # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Query-Pipelines-API.html
-        qpid = queryPipeline['id']
-        self.__request('POST', 'query-pipelines/' + qpid, body=queryPipeline)
+        self.__request('POST', 'query-pipelines/', body=queryPipeline)
 
     def update_query_pipeline(self, queryPipeline):
         qpid = queryPipeline['id']
@@ -177,8 +176,7 @@ class Fusion:
 
     def add_index_pipeline(self, indexPipeline):
         # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Query-Pipelines-API.html
-        qpid = indexPipeline['id']
-        self.__request('POST', 'index-pipelines/' + qpid, body=indexPipeline)
+        self.__request('POST', 'index-pipelines/', body=indexPipeline)
 
     def update_index_pipeline(self, indexPipeline):
         qpid = indexPipeline['id']

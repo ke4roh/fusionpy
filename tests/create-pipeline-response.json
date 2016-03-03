@@ -1,0 +1,25 @@
+{
+  "id" : "test-pipeline",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "30b54b84-532f-49dd-80f2-0f616a6d57a6",
+    "rows" : 10,
+    "start" : 0,
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "facet",
+    "id" : "f69d82e9-2709-40cd-b5ba-f4877e13015a",
+    "skip" : false,
+    "label" : "facet",
+    "type" : "facet"
+  }, {
+    "type" : "solr-query",
+    "id" : "71e5b26c-d589-48f4-ba70-9274d87e73a2",
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+}

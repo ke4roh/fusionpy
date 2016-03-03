@@ -23,27 +23,27 @@ class FusionTest(TestCase):
         self.server.stop()
 
     def test_ping_virgin(self):
-        self.server.expect(method='GET', url='/api').and_return(mime_type="application/json",
-                                                                file_content=test_path + "Fusion_ping_virgin_response.json")
-        self.server.expect(method='GET', url='/api').and_return(mime_type="application/json",
-                                                                file_content=test_path + "Fusion_ping_virgin_response.json")
+        self.server.expect(method='GET', url='/api$').and_return(mime_type="application/json",
+                                                                 file_content=test_path + "Fusion_ping_virgin_response.json")
+        self.server.expect(method='GET', url='/api$').and_return(mime_type="application/json",
+                                                                 file_content=test_path + "Fusion_ping_virgin_response.json")
         f = Fusion(**fa)
         self.assertFalse(f.ping())
 
     def test_ping_established(self):
-        self.server.expect(method='GET', url='/api').and_return(mime_type="application/json",
-                                                                file_content=test_path + "Fusion_ping_established_response.json")
-        self.server.expect(method='GET', url='/api').and_return(mime_type="application/json",
-                                                                file_content=test_path + "Fusion_ping_established_response.json")
+        self.server.expect(method='GET', url='/api$').and_return(mime_type="application/json",
+                                                                 file_content=test_path + "Fusion_ping_established_response.json")
+        self.server.expect(method='GET', url='/api$').and_return(mime_type="application/json",
+                                                                 file_content=test_path + "Fusion_ping_established_response.json")
         f = Fusion(**fa)
         self.assertTrue(f.ping())
 
     def test_set_admin_pw_bad_pw(self):
         #        HTTP/1.1 400 Bad Request
         #        {"code":"invalid-password"}
-        self.server.expect(method='GET', url='/api').and_return(mime_type="application/json",
-                                                                file_content=test_path + "Fusion_ping_virgin_response.json")
-        self.server.expect(method='POST', url='/api', data=json.dumps({"password": "top_secret"})).and_return(
+        self.server.expect(method='GET', url='/api$').and_return(mime_type="application/json",
+                                                                 file_content=test_path + "Fusion_ping_virgin_response.json")
+        self.server.expect(method='POST', url='/api$', data=json.dumps({"password": "top_secret"})).and_return(
             reply_code=400,
             content='{"code":"invalid-password"}')
 
@@ -56,9 +56,9 @@ class FusionTest(TestCase):
 
     def test_Set_admin_pw_again(self):
         #          HTTP/1.1 409 Conflict
-        self.server.expect(method='GET', url='/api').and_return(mime_type="application/json",
-                                                                file_content=test_path + "Fusion_ping_established_response.json")
-        self.server.expect(method='POST', url='/api', data=json.dumps({"password": "top_secret"})).and_return(
+        self.server.expect(method='GET', url='/api$').and_return(mime_type="application/json",
+                                                                 file_content=test_path + "Fusion_ping_established_response.json")
+        self.server.expect(method='POST', url='/api$', data=json.dumps({"password": "top_secret"})).and_return(
             reply_code=409)
 
         f = Fusion(**fa)
@@ -71,22 +71,22 @@ class FusionTest(TestCase):
     def test_set_admin_pw(self):
         #        HTTP/1.1 201 Created
         #        (no content)
-        self.server.expect(method='GET', url='/api').and_return(mime_type="application/json",
-                                                                file_content=test_path + "Fusion_ping_virgin_response.json")
-        self.server.expect(method='POST', url='/api', data=json.dumps({"password": "topSecret5"})).and_return(
+        self.server.expect(method='GET', url='/api$').and_return(mime_type="application/json",
+                                                                 file_content=test_path + "Fusion_ping_virgin_response.json")
+        self.server.expect(method='POST', url='/api$', data=json.dumps({"password": "topSecret5"})).and_return(
             reply_code=201)
-        self.server.expect(method='GET', url='/api').and_return(mime_type="application/json",
-                                                                file_content=test_path + "Fusion_ping_established_response.json")
+        self.server.expect(method='GET', url='/api$').and_return(mime_type="application/json",
+                                                                 file_content=test_path + "Fusion_ping_established_response.json")
         f = Fusion(**fa)
         f.set_admin_password()
         f.ping()
 
     def test_get_index_pipelines(self):
-        self.server.expect(method='GET', url='/api'). \
+        self.server.expect(method='GET', url='/api$'). \
             and_return(mime_type="application/json",
                        file_content=test_path + "Fusion_ping_established_response.json")
         for i in range(0, 2):
-            self.server.expect(method='GET', url='/api/apollo/index-pipelines'). \
+            self.server.expect(method='GET', url='/api/apollo/index-pipelines$'). \
                 and_return(mime_type="application/json",
                            file_content=test_path + "some_index_pipelines.json")
         f = Fusion(**fa)
@@ -106,11 +106,11 @@ class FusionTest(TestCase):
         self.assertTrue(len(allpipelines) > len(pipelines))
 
     def test_get_query_pipelines(self):
-        self.server.expect(method='GET', url='/api'). \
+        self.server.expect(method='GET', url='/api$'). \
             and_return(mime_type="application/json",
                        file_content=test_path + "Fusion_ping_established_response.json")
         for i in range(0, 2):
-            self.server.expect(method='GET', url='/api/apollo/query-pipelines'). \
+            self.server.expect(method='GET', url='/api/apollo/query-pipelines$'). \
                 and_return(mime_type="application/json",
                            file_content=test_path + "some_query_pipelines.json")
         f = Fusion(**fa)
@@ -130,12 +130,24 @@ class FusionTest(TestCase):
         self.assertTrue(len(allpipelines) > len(pipelines))
 
     def test_get_collection_stats(self):
-        self.server.expect(method='GET', url='/api'). \
+        self.server.expect(method='GET', url='/api$'). \
             and_return(mime_type="application/json",
                        file_content=test_path + "Fusion_ping_established_response.json")
-        self.server.expect(method='GET', url='/api/apollo/collections/phi/stats').and_return(
+        self.server.expect(method='GET', url='/api/apollo/collections/phi/stats$').and_return(
             file_content=test_path + "phi-stats.json")
         with open(test_path + "phi-stats.json") as f:
             json_stats = json.loads(f.read())
 
         self.assertEquals(json_stats, Fusion(**fa).get_collection().stats())
+
+    def test_create_query_pipeline(self):
+        self.server.expect(method='GET', url='/api$'). \
+            and_return(mime_type="application/json",
+                       file_content=test_path + "Fusion_ping_established_response.json")
+        self.server.expect(method='POST', url='/api/apollo/query-pipelines/$').and_return(
+            file_content=test_path + "create-pipeline-response.json")
+
+        with open(test_path + "create-pipeline-response.json") as f:
+            qp = json.loads(f.read())
+
+        Fusion(**fa).add_query_pipeline(qp)

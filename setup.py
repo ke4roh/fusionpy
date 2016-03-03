@@ -11,7 +11,8 @@ config = {
 #   'download_url': 'Where to download it.',
     'author_email': 'jscarbor@redhat.com',
     'version': '0.1',
-    'install_requires': ['nose','tqdm','urllib3', 'stubserver'],
+    'install_requires': ['nose','tqdm','urllib3'],
+    'build_requires': ['stubserver'],
     'packages': ['fusionpy'],
     'scripts': [],
     'name': 'fusionpy'
