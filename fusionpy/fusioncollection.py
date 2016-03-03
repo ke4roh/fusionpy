@@ -107,7 +107,7 @@ class FusionCollection:
                               (self.collection_name, filename))
         return resp.data
 
-    def set_config_file(self, filename, contents, content_type="application/xml"):
+    def set_config_file(self, filename, contents, content_type="application/xml", reload=True):
         # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Solr-Configuration-API.html#SolrConfigurationAPI-CreateorUpdateaFileinZooKeeper
 
         # Select the correct method
@@ -126,8 +126,8 @@ class FusionCollection:
 
         # submit the file
         resp = self.__request(method,
-                              "collections/%s/solr-config/%s" %
-                              (self.collection_name, filename),
+                              "collections/%s/solr-config/%s?%s" %
+                              (self.collection_name, filename, urlencode({"reload": reload})),
                               headers={"Content-Type": content_type},
                               body=contents)
 
