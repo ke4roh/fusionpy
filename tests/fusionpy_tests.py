@@ -80,3 +80,62 @@ class FusionTest(TestCase):
         f = Fusion(**fa)
         f.set_admin_password()
         f.ping()
+
+    def test_get_index_pipelines(self):
+        self.server.expect(method='GET', url='/api'). \
+            and_return(mime_type="application/json",
+                       file_content=test_path + "Fusion_ping_established_response.json")
+        for i in range(0, 2):
+            self.server.expect(method='GET', url='/api/apollo/index-pipelines'). \
+                and_return(mime_type="application/json",
+                           file_content=test_path + "some_index_pipelines.json")
+        f = Fusion(**fa)
+        pipelines = f.get_index_pipelines()
+
+        # This reference pipeline file may change, so this test could assert that certain pipelines are present
+        # and even go so far as to dissect them, but this is not a test of json.loads().
+        self.assertTrue(len(pipelines) > 8)
+        pmap = {}
+        for p in pipelines:
+            pmap[p['id']] = p['stages']
+
+        self.assertEqual(len(pipelines), len(pmap))
+
+        allpipelines = f.get_index_pipelines(include_system=True)
+
+        self.assertTrue(len(allpipelines) > len(pipelines))
+
+    def test_get_query_pipelines(self):
+        self.server.expect(method='GET', url='/api'). \
+            and_return(mime_type="application/json",
+                       file_content=test_path + "Fusion_ping_established_response.json")
+        for i in range(0, 2):
+            self.server.expect(method='GET', url='/api/apollo/query-pipelines'). \
+                and_return(mime_type="application/json",
+                           file_content=test_path + "some_query_pipelines.json")
+        f = Fusion(**fa)
+        pipelines = f.get_query_pipelines()
+
+        # This reference pipeline file may change, so this test could assert that certain pipelines are present
+        # and even go so far as to dissect them, but this is not a test of json.loads().
+        self.assertTrue(len(pipelines) > 7, len(pipelines))
+        pmap = {}
+        for p in pipelines:
+            pmap[p['id']] = p['stages']
+
+        self.assertEqual(len(pipelines), len(pmap))
+
+        allpipelines = f.get_query_pipelines(include_system=True)
+
+        self.assertTrue(len(allpipelines) > len(pipelines))
+
+    def test_get_collection_stats(self):
+        self.server.expect(method='GET', url='/api'). \
+            and_return(mime_type="application/json",
+                       file_content=test_path + "Fusion_ping_established_response.json")
+        self.server.expect(method='GET', url='/api/apollo/collections/phi/stats').and_return(
+            file_content=test_path + "phi-stats.json")
+        with open(test_path + "phi-stats.json") as f:
+            json_stats = json.loads(f.read())
+
+        self.assertEquals(json_stats, Fusion(**fa).get_collection().stats())

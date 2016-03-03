@@ -19,36 +19,7 @@ class FusionCollection:
         self.http = fusion_instance.http
 
     def __request(self, method, path, headers=None, fields=None, body=None):
-        """
-        Send an authenticated request to the API.
-        :param method: 'GET', 'PUT', 'POST', etc.
-        :param path: the part after "/api/apollo/" (note that it must not include a leading slash)
-        :param headers: anything besides Authorization that may be necessary
-        :param fields: to include in the request, for requests that are not POST or HEAD,
-           these will be encoded on the URL
-        :param body: for submitting with the request.  Body type should be string, bytes, list, or dict.  For the
-            latter two, they will be encoded as json and the Content-Type header set to "application/json".
-        :return: response if response.status is in the 200s, FusionError containing the response body otherwise
-        """
-        h = {"Authorization": "Basic " + self.fusion_instance.credentials,
-             "Accept": "application/json; q=1.0, text/plain; q=0.7, application/xml; q=0.5, */*; q=0.1"}
-        if headers is not None:
-            h.update(headers)
-
-        if fields is not None and method != 'POST' and method != 'HEAD':
-            path += '?' + urlencode(fields)
-            fields = None
-
-        if body is not None and (type(body) is dict or type(body) is list):
-            h["Content-Type"] = "application/json"
-            body = json.dumps(body)
-
-        url = self.fusion_instance.api_url + path
-        resp = self.http.request(method, url, headers=h, fields=fields, body=body)
-
-        if resp.status < 200 or resp.status > 299:
-            raise fusionpy.FusionError(resp, url=url)
-        return resp
+        return self.fusion_instance._Fusion__request(method, path, headers, fields, body)
 
     def collection_exists(self):
         # curl -D - -u admin:dog8code  http://localhost:8764/api/apollo/collections/

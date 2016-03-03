@@ -8,6 +8,9 @@ from base64 import b64encode
 import fusionpy
 from fusionpy.fusioncollection import FusionCollection
 
+SYS_IX_PIPELINES_START = ['_aggr', '_signals_ingest', '_system']
+
+
 class Fusion:
     def __init__(self, fusion_url=None, urllib3_pool_manager=None):
         """
@@ -39,7 +42,7 @@ class Fusion:
         try:
             resp = self.http.request('GET', self.url + '/api')
         except urllib3.exceptions.MaxRetryError as mre:
-            raise fusionpy.FusionError(None, message="Fusion port 8764 isn't working. " + str(mre))
+            raise fusionpy.FusionError(None, message="Fusion port %d isn't working. %s" % (self.port, str(mre)))
 
         if resp.status > 200:
             raise fusionpy.FusionError(resp, message="Fusion is not responding to status checks.")
@@ -94,6 +97,49 @@ class Fusion:
                                  body=body)
         if resp.status != 201:
             raise fusionpy.FusionError(resp)
+
+    def __request(self, method, path, headers=None, fields=None, body=None):
+        """
+        Send an authenticated request to the API.
+        :param method: 'GET', 'PUT', 'POST', etc.
+        :param path: the part after "/api/apollo/" (note that it must not include a leading slash)
+        :param headers: anything besides Authorization that may be necessary
+        :param fields: to include in the request, for requests that are not POST or HEAD,
+           these will be encoded on the URL
+        :param body: for submitting with the request.  Body type should be string, bytes, list, or dict.  For the
+            latter two, they will be encoded as json and the Content-Type header set to "application/json".
+        :return: response if response.status is in the 200s, FusionError containing the response body otherwise
+        """
+        h = {"Authorization": "Basic " + self.credentials,
+             "Accept": "application/json; q=1.0, text/plain; q=0.7, application/xml; q=0.5, */*; q=0.1"}
+        if headers is not None:
+            h.update(headers)
+
+        if fields is not None and method != 'POST' and method != 'HEAD':
+            path += '?' + urlencode(fields)
+            fields = None
+
+        if body is not None and (type(body) is dict or type(body) is list):
+            h["Content-Type"] = "application/json"
+            body = json.dumps(body)
+
+        url = self.api_url + path
+        resp = self.http.request(method, url, headers=h, fields=fields, body=body)
+
+        if resp.status < 200 or resp.status > 299:
+            raise fusionpy.FusionError(resp, url=url)
+        return resp
+
+    def get_index_pipelines(self, include_system=False):
+        pl = json.loads(self.__request('GET', 'index-pipelines').data)
+        return [x for x in pl if
+                include_system or
+                len([y for y in SYS_IX_PIPELINES_START if x['id'].startswith(y)]) == 0]
+
+    def get_query_pipelines(self, include_system=False):
+        pl = json.loads(self.__request('GET', 'query-pipelines').data)
+        return [x for x in pl if
+                include_system or not x['id'].startswith('system_')]
 
     def add_query_pipelines(self, queryPipeline):
         # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Query-Pipelines-API.html

@@ -1,0 +1,288 @@
+[ {
+  "id" : "solutiondupes-default",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "fce889fa-492e-4d32-a952-7f63526f7f21",
+    "rows" : 10,
+    "start" : 0,
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "facet",
+    "id" : "34edf8dd-53c3-4867-92d2-5c0c721e71f1",
+    "skip" : true,
+    "label" : "facet",
+    "type" : "facet"
+  }, {
+    "type" : "solr-query",
+    "id" : "1b131a2d-88f7-4d1a-94d6-1b5f0e5ebef7",
+    "allowedRequestHandlers" : [ "select", "mlt" ],
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+}, {
+  "id" : "default",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "0d23ae5a-e675-49f3-986a-6eaf7bbf066e",
+    "rows" : 10,
+    "start" : 0,
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "facet",
+    "id" : "9b024d2c-95dc-4bb5-8dc0-b46543441029",
+    "skip" : false,
+    "label" : "facet",
+    "type" : "facet"
+  }, {
+    "type" : "solr-query",
+    "id" : "1ba50109-e7f2-470a-96d6-6625ab080bf1",
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+}, {
+  "id" : "BestBuy-default",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "761a52ce-a2ce-4788-adc5-1c092ea78744",
+    "rows" : 10,
+    "start" : 0,
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "facet",
+    "id" : "c9389686-f82c-4f8e-9e0b-1f18a5446f06",
+    "skip" : false,
+    "label" : "facet",
+    "type" : "facet"
+  }, {
+    "type" : "solr-query",
+    "id" : "a5337c74-facc-4efc-83f6-89b62684c843",
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+}, {
+  "id" : "Qpipeline_with_signals",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "h18gds4i",
+    "rows" : 10,
+    "start" : 0,
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "sub-query",
+    "id" : "or1f9a4i",
+    "key" : "subquery-results",
+    "collection" : "BestBuy_signals_aggr",
+    "handler" : "select",
+    "method" : "GET",
+    "parentParams" : [ "q" ],
+    "params" : [ {
+      "key" : "mm",
+      "value" : "50%"
+    }, {
+      "key" : "pf",
+      "value" : "query_t^3"
+    }, {
+      "key" : "fl",
+      "value" : "id,doc_id_s,aggr_count_i,query_s,timestamp_tdt"
+    }, {
+      "key" : "sort",
+      "value" : "score desc, aggr_count_i desc"
+    }, {
+      "key" : "qf",
+      "value" : "query_t"
+    }, {
+      "key" : "rows",
+      "value" : "100"
+    }, {
+      "key" : "defType",
+      "value" : "edismax"
+    }, {
+      "key" : "pf",
+      "value" : "query_t~0^1"
+    }, {
+      "key" : "pf",
+      "value" : "query_t~2^7"
+    } ],
+    "skip" : false,
+    "label" : "Query for Signals",
+    "type" : "sub-query"
+  }, {
+    "type" : "rollup-rec-aggr",
+    "id" : "6umzpvi",
+    "key" : "subquery-results",
+    "resultKey" : "subquery-aggr",
+    "rollupField" : "doc_id_s",
+    "weightField" : "aggr_count_i",
+    "weightFunction" : "sum",
+    "maxRows" : 10,
+    "sort" : true,
+    "skip" : false,
+    "label" : "rollup-rec-aggr",
+    "type" : "rollup-rec-aggr"
+  }, {
+    "type" : "adv-boost",
+    "id" : "g0gam7vi",
+    "boostingMethod" : "query-param",
+    "boostingParam" : "boost",
+    "key" : "subquery-aggr",
+    "boostFieldName" : "id",
+    "skip" : false,
+    "label" : "Relevancy Boost with Signals",
+    "type" : "adv-boost"
+  }, {
+    "type" : "solr-query",
+    "id" : "vcuwhfr",
+    "allowedRequestHandlers" : [ "mobile" ],
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+}, {
+  "id" : "sd2-default",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "30b54b84-532f-49dd-80f2-0f616a6d57a6",
+    "rows" : 10,
+    "start" : 0,
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "facet",
+    "id" : "f69d82e9-2709-40cd-b5ba-f4877e13015a",
+    "skip" : false,
+    "label" : "facet",
+    "type" : "facet"
+  }, {
+    "type" : "solr-query",
+    "id" : "71e5b26c-d589-48f4-ba70-9274d87e73a2",
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+}, {
+  "id" : "kcs-default",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "44efdc8c-2bb6-48e5-b46c-60f47b544cc0",
+    "rows" : 10,
+    "start" : 0,
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "facet",
+    "id" : "102d3450-d047-487e-96e7-135945cc474a",
+    "skip" : false,
+    "label" : "facet",
+    "type" : "facet"
+  }, {
+    "type" : "solr-query",
+    "id" : "be677a02-1846-4bcd-9e91-0e4cccbc3ad7",
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+}, {
+  "id" : "medPub-default",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "4357b050-29ea-44ea-a3fb-2587afe3597c",
+    "rows" : 10,
+    "start" : 0,
+    "queryFields" : [ {
+      "field" : "mesh_heading_txt"
+    }, {
+      "field" : "article_title_txt"
+    }, {
+      "field" : "article_abstract_txt"
+    } ],
+    "returnFields" : [ "mesh_heading_txt", "article_title_txt", "article_abstract_txt" ],
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "facet",
+    "id" : "e69c7a11-69a5-4076-97a5-c18249d4bc58",
+    "fieldFacets" : [ {
+      "field" : "article_title_txt",
+      "minCount" : 1,
+      "missing" : false
+    } ],
+    "skip" : false,
+    "label" : "facet",
+    "type" : "facet"
+  }, {
+    "type" : "solr-query",
+    "id" : "203c594c-34a1-4773-9e82-dd3f05466d3e",
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+}, {
+  "id" : "system_banana-default",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "958138da-d331-460a-b755-72fcd5b16423",
+    "rows" : 10,
+    "start" : 0,
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "facet",
+    "id" : "61de653a-8c47-4b9a-b3db-228fce1e45c8",
+    "skip" : false,
+    "label" : "facet",
+    "type" : "facet"
+  }, {
+    "type" : "solr-query",
+    "id" : "d0ad6805-2880-435e-9fcf-55395f456d7e",
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+}, {
+  "id" : "Log_visualization-default",
+  "stages" : [ {
+    "type" : "search-fields",
+    "id" : "48ea6be8-2074-423b-8555-86c9ee89cebe",
+    "rows" : 10,
+    "start" : 0,
+    "skip" : false,
+    "label" : "search-fields",
+    "type" : "search-fields"
+  }, {
+    "type" : "facet",
+    "id" : "307a6436-d6cf-4f62-bbaf-1d7b603c4f56",
+    "skip" : false,
+    "label" : "facet",
+    "type" : "facet"
+  }, {
+    "type" : "solr-query",
+    "id" : "7224c66c-9f40-4372-81cc-b7da430bc443",
+    "httpMethod" : "POST",
+    "skip" : false,
+    "label" : "solr-query",
+    "type" : "solr-query"
+  } ]
+} ]
