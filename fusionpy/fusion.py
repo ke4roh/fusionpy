@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import json
 import urllib3
+from urllib import urlencode
 from urlparse import urlparse
 from base64 import b64encode
 from fusionpy import FusionError
@@ -65,15 +66,38 @@ class Fusion:
         :param indexPipelines: a list of index pipelines
         :return: self
         """
-        assert self.ping(), "Configure the admin password"
+        if not self.ping():
+            self.set_admin_password()
+            if not self.ping():
+                raise FusionError(None, message="Configure the admin password")
+
         if collections is not None:
             for c, ccfg in collections.iteritems():
                 self.get_collection(c).ensure_collection(**ccfg)
 
         if queryPipelines is not None:
-            pass
+            qp = self.get_query_pipelines()
+            qpmap = {}
+            for p in qp:
+                qpmap[p['id']] = p
+            for p in queryPipelines:
+                if p['id'] in qpmap:
+                    if cmp(p,qpmap[p['id']]) != 0:
+                        self.update_query_pipeline(p)
+                else:
+                    self.add_query_pipeline(p)
+
         if indexPipelines is not None:
-            pass
+            ip = self.get_index_pipelines()
+            ipmap = {}
+            for p in ip:
+                ipmap[p['id']] = p
+            for p in indexPipelines:
+                if p['id'] in ipmap:
+                    if cmp(p,ipmap[p['id']]) != 0:
+                        self.update_index_pipeline(p)
+                else:
+                    self.add_index_pipeline(p)
 
         return self
 
@@ -141,6 +165,22 @@ class Fusion:
         return [x for x in pl if
                 include_system or not x['id'].startswith('system_')]
 
-    def add_query_pipelines(self, queryPipeline):
+    def add_query_pipeline(self, queryPipeline):
         # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Query-Pipelines-API.html
-        pass
+        qpid = queryPipeline['id']
+        self.__request('POST', 'query-pipelines/' + qpid, body=queryPipeline)
+
+    def update_query_pipeline(self, queryPipeline):
+        qpid = queryPipeline['id']
+        self.__request('PUT', 'query-pipelines/' + qpid, body=queryPipeline)
+        self.__request('PUT', 'query-pipelines/' + qpid + '/refresh')
+
+    def add_index_pipeline(self, indexPipeline):
+        # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Query-Pipelines-API.html
+        qpid = indexPipeline['id']
+        self.__request('POST', 'index-pipelines/' + qpid, body=indexPipeline)
+
+    def update_index_pipeline(self, indexPipeline):
+        qpid = indexPipeline['id']
+        self.__request('PUT', 'index-pipelines/' + qpid, body=indexPipeline)
+        self.__request('PUT', 'index-pipelines/' + qpid + '/refresh')
