@@ -1,16 +1,20 @@
 #!/usr/bin/python
 from __future__ import print_function
 
-__all__ = ['Fusion', 'FusionCollection', 'FusionError']
+__all__ = ['Fusion', 'FusionCollection', 'FusionError', 'FusionRequester', 'HttpFusionRequester']
 
 
 class FusionError(IOError):
-    def __init__(self, response, message=None, url=None):
+    def __init__(self, response, request_body=None, message=None, url=None):
         if message is None:
             message = ""
             if url is not None:
                 message = "Requested " + url + "\n"
+            if request_body is not None:
+                message += request_body
             message += "Status %d\n\n%s" % (response.status, response.data)
         IOError.__init__(self, message)
         self.response = response
         self.url = url
+
+

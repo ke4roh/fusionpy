@@ -2,18 +2,14 @@
 from __future__ import print_function
 import os
 import json
-import urllib3
-from urllib import urlencode
 from urlparse import urlparse
-from base64 import b64encode
 from fusionpy import FusionError
 from fusionpy.fusioncollection import FusionCollection
+from fusionpy.connectors import FusionRequester, HttpFusionRequester
 
-SYS_IX_PIPELINES_START = ['_aggr', '_signals_ingest', '_system']
 
-
-class Fusion:
-    def __init__(self, fusion_url=None, urllib3_pool_manager=None):
+class Fusion(FusionRequester):
+    def __init__(self, fusion_url=None, requester=None):
         """
         :param fusion_url: The URL to a collection in Fusion, None to use os.environ["FUSION_API_COLLECTION_URL"]
         :param urllib3_pool_manager: urllib3.PoolManager() by default.  Anything duckwise-compatible.
@@ -22,17 +18,12 @@ class Fusion:
         if fusion_url is None:
             fusion_url = os.environ.get('FUSION_API_COLLECTION_URL',
                                         'http://admin:topSecret5@localhost:8764/api/apollo/collections/mycollection')
-        if urllib3_pool_manager is None:
-            self.http = urllib3.PoolManager()
-        else:
-            self.http = urllib3_pool_manager
-        self.fusion_url_parsed = fusion_url_parsed = urlparse(fusion_url)
-        self.hostname = fusion_url_parsed.hostname
-        self.port = fusion_url_parsed.port
-        self.url = '%s://%s:%d' % (fusion_url_parsed.scheme, self.hostname, self.port)
-        self.credentials = b64encode('%s:%s' % (fusion_url_parsed.username, fusion_url_parsed.password))
-        self.default_collection = fusion_url_parsed.path.rsplit('/', 1)[-1]
-        self.api_url = self.url + '/'.join(fusion_url_parsed.path.split('/', 3)[0:3]) + '/'
+        self.fusion_url_parsed = urlparse(fusion_url)
+
+        if requester is None:
+            requester = HttpFusionRequester(fusion_url)
+        super(Fusion, self).__init__(requester)
+        self.default_collection = fusion_url.rsplit('/', 1)[-1]
         self.ping()
 
     def ping(self):
@@ -41,63 +32,54 @@ class Fusion:
             the server doesn't respond or all its services aren't working correctly.
         """
         try:
-            resp = self.http.request('GET', self.url + '/api')
-        except urllib3.exceptions.MaxRetryError as mre:
-            raise FusionError(None, message="Fusion port %d isn't working. %s" % (self.port, str(mre)))
-
-        if resp.status > 200:
-            raise FusionError(resp, message="Fusion is not responding to status checks.")
+            resp = self.request('GET', '/api')
+        except FusionError as fe:
+            if fe.response is not None and fe.response.status > 200:
+                raise FusionError(fe.response, message="Fusion is not responding to status checks.")
+            else:
+                raise fe
 
         rd = json.loads(resp.data)
         for thing, stats in rd["status"].items():
-            notworking = []
+            not_working = []
             if "ping" in stats and not stats["ping"]:
-                notworking.append(thing)
-            if len(notworking) > 0:
-                raise FusionError(resp, "Fusion services %s are not working." % str(notworking))
+                not_working.append(thing)
+            if len(not_working) > 0:
+                raise FusionError(resp, "Fusion services %s are not working." % str(not_working))
 
         return rd["initMeta"] is not None
 
-    def ensure_config(self, collections=None, queryPipelines=None, indexPipelines=None):
+    def ensure_config(self, collections=None, queryPipelines=None, indexPipelines=None, write=True):
         """
         Idempotent initialization of the configuration according to params
         :param collections: a list of collection configurations. see fusioncollection.FusionCollection.createCollection
         :param queryPipelines: a list of query pipelines
         :param indexPipelines: a list of index pipelines
-        :return: self
+        :param write: False to only report if changes are required
+        :return: self if everything is ready, None if the admin password is not set or a collection is absent,
+                 False if there is some configuration change outstanding
         """
         if not self.ping():
-            self.set_admin_password()
-            if not self.ping():
-                raise FusionError(None, message="Configure the admin password")
+            if write:
+                self.set_admin_password()
+                if not self.ping():
+                    raise FusionError(None, message="Configure the admin password")
+            else:
+                return None
 
         if collections is not None:
             for c, ccfg in collections.iteritems():
-                self.get_collection(c).ensure_collection(**ccfg)
+                cr = self.get_collection(c).ensure_collection(write=write, **ccfg)
+                if not write and not cr:
+                    return None
 
         if queryPipelines is not None:
-            qp = self.get_query_pipelines()
-            qpmap = {}
-            for p in qp:
-                qpmap[p['id']] = p
-            for p in queryPipelines:
-                if p['id'] in qpmap:
-                    if cmp(p,qpmap[p['id']]) != 0:
-                        self.update_query_pipeline(p)
-                else:
-                    self.add_query_pipeline(p)
+            if not QueryPipelines(self).ensure_config(queryPipelines, write=write) and not write:
+                return False
 
         if indexPipelines is not None:
-            ip = self.get_index_pipelines()
-            ipmap = {}
-            for p in ip:
-                ipmap[p['id']] = p
-            for p in indexPipelines:
-                if p['id'] in ipmap:
-                    if cmp(p,ipmap[p['id']]) != 0:
-                        self.update_index_pipeline(p)
-                else:
-                    self.add_index_pipeline(p)
+            if not IndexPipelines(self).ensure_config(indexPipelines, write=write) and not write:
+                return False
 
         return self
 
@@ -114,71 +96,80 @@ class Fusion:
             else:
                 raise FusionError(None, message="No admin password supplied")
 
-        url = self.url + '/api'
-        headers = {"Content-Type": "application/json"}
-        body = json.dumps({"password": password})
-        resp = self.http.request('POST', url, headers=headers,
-                                 body=body)
+        resp = self.request('POST', "/api", body={"password": password})
         if resp.status != 201:
             raise FusionError(resp)
 
-    def __request(self, method, path, headers=None, fields=None, body=None):
-        """
-        Send an authenticated request to the API.
-        :param method: 'GET', 'PUT', 'POST', etc.
-        :param path: the part after "/api/apollo/" (note that it must not include a leading slash)
-        :param headers: anything besides Authorization that may be necessary
-        :param fields: to include in the request, for requests that are not POST or HEAD,
-           these will be encoded on the URL
-        :param body: for submitting with the request.  Body type should be string, bytes, list, or dict.  For the
-            latter two, they will be encoded as json and the Content-Type header set to "application/json".
-        :return: response if response.status is in the 200s, FusionError containing the response body otherwise
-        """
-        h = {"Authorization": "Basic " + self.credentials,
-             "Accept": "application/json; q=1.0, text/plain; q=0.7, application/xml; q=0.5, */*; q=0.1"}
-        if headers is not None:
-            h.update(headers)
-
-        if fields is not None and method != 'POST' and method != 'HEAD':
-            path += '?' + urlencode(fields)
-            fields = None
-
-        if body is not None and (type(body) is dict or type(body) is list):
-            h["Content-Type"] = "application/json"
-            body = json.dumps(body)
-
-        url = self.api_url + path
-        resp = self.http.request(method, url, headers=h, fields=fields, body=body)
-
-        if resp.status < 200 or resp.status > 299:
-            raise FusionError(resp, url=url)
-        return resp
-
     def get_index_pipelines(self, include_system=False):
-        pl = json.loads(self.__request('GET', 'index-pipelines').data)
-        return [x for x in pl if
-                include_system or
-                len([y for y in SYS_IX_PIPELINES_START if x['id'].startswith(y)]) == 0]
+        return IndexPipelines(self).get_pipelines(include_system=include_system)
 
     def get_query_pipelines(self, include_system=False):
-        pl = json.loads(self.__request('GET', 'query-pipelines').data)
-        return [x for x in pl if
+        return QueryPipelines(self).get_pipelines(include_system=include_system)
+
+    def add_query_pipeline(self, query_pipeline):
+        QueryPipelines(self).add_pipeline(query_pipeline)
+
+    def update_query_pipeline(self, query_pipeline):
+        QueryPipelines(self).update_pipeline(query_pipeline)
+
+    def add_index_pipeline(self, index_pipeline):
+        IndexPipelines(self).add_pipeline(index_pipeline)
+
+    def update_index_pipeline(self, index_pipeline):
+        IndexPipelines(self).update_pipeline(index_pipeline)
+
+
+class Pipelines(FusionRequester):
+    def __init__(self, fusion_instance):
+        super(Pipelines, self).__init__(fusion_instance)
+        tn = type(self).__name__
+        self.ptype = tn[0:len(tn) - 9].lower()  # "query" or "index"
+
+    def ensure_config(self, config_pipelines, write=True):
+        fusion_pipelines_list = self.get_pipelines()
+        fusion_pipelines_map = {}
+        for p in fusion_pipelines_list:
+            fusion_pipelines_map[p['id']] = p
+        for p in config_pipelines:
+            if p['id'] in fusion_pipelines_map:
+                if cmp(p, fusion_pipelines_map[p['id']]) != 0:
+                    if write:
+                        self.update_pipeline(p)
+                    else:
+                        return False
+            else:
+                if write:
+                    self.add_pipeline(p)
+                else:
+                    return False
+        return True
+
+    def get_pipelines(self):
+        return json.loads(self.request('GET', self.ptype + '-pipelines').data)
+
+    def add_pipeline(self, pipeline):
+        self.request('POST', self.ptype + '-pipelines/', body=pipeline)
+
+    def update_pipeline(self, pipeline):
+        pid = pipeline['id']
+        self.request('PUT', self.ptype + '-pipelines/' + pid, body=pipeline)
+        self.request('PUT', self.ptype + '-pipelines/' + pid + '/refresh')
+
+
+class QueryPipelines(Pipelines):
+    def __init__(self, fusion_instance):
+        super(QueryPipelines, self).__init__(fusion_instance)
+
+    def get_pipelines(self, include_system=False):
+        return [x for x in super(QueryPipelines, self).get_pipelines() if
                 include_system or not x['id'].startswith('system_')]
 
-    def add_query_pipeline(self, queryPipeline):
-        # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Query-Pipelines-API.html
-        self.__request('POST', 'query-pipelines/', body=queryPipeline)
 
-    def update_query_pipeline(self, queryPipeline):
-        qpid = queryPipeline['id']
-        self.__request('PUT', 'query-pipelines/' + qpid, body=queryPipeline)
-        self.__request('PUT', 'query-pipelines/' + qpid + '/refresh')
+class IndexPipelines(Pipelines):
+    def __init__(self, fusion_instance):
+        super(IndexPipelines, self).__init__(fusion_instance)
 
-    def add_index_pipeline(self, indexPipeline):
-        # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Query-Pipelines-API.html
-        self.__request('POST', 'index-pipelines/', body=indexPipeline)
-
-    def update_index_pipeline(self, indexPipeline):
-        qpid = indexPipeline['id']
-        self.__request('PUT', 'index-pipelines/' + qpid, body=indexPipeline)
-        self.__request('PUT', 'index-pipelines/' + qpid + '/refresh')
+    def get_pipelines(self, include_system=False):
+        return [x for x in super(IndexPipelines, self).get_pipelines() if
+                include_system or
+                len([y for y in ['_aggr', '_signals_ingest', '_system'] if x['id'].startswith(y)]) == 0]

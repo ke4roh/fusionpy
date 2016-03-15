@@ -3,16 +3,17 @@ import fusionpy
 from unittest import TestCase
 from stubserver import StubServer
 from fusionpy.fusion import Fusion
+import fusionpy.fusioncollection
 from urlparse import urlparse
 import json
 import urllib3
 import os
+from fusionpy.connectors import HttpFusionRequester
 
 test_url = 'http://admin:topSecret5@localhost:8998/api/apollo/collections/phi'
 test_path = os.path.dirname(os.path.realpath(__file__)) + "/"
 http = urllib3.PoolManager(num_pools=1, maxsize=1, retries=0)
-fa = {"fusion_url": test_url, "urllib3_pool_manager": http}
-
+fa = {"fusion_url": test_url, "requester": HttpFusionRequester(test_url, urllib3_pool_manager=http)}
 
 class FusionTest(TestCase):
     def setUp(self):
@@ -151,3 +152,70 @@ class FusionTest(TestCase):
             qp = json.loads(f.read())
 
         Fusion(**fa).add_query_pipeline(qp)
+
+
+class NoNetworkTest(TestCase):
+    """
+    These tests don't require a network mock
+    """
+
+    def test_create_field(self):
+        field_definition = {
+            "name": "label",
+            "type": "shingleString",
+            "indexed": True,
+            "stored": True
+        }
+
+        class MockCollection:
+            def __init__(self, tc):
+                self.tc = tc
+
+            def request(self, method, path, headers=None, fields=None, body=None, validate=None):
+                self.tc.assertEquals({'add-field': field_definition}, body)
+
+        mc = MockCollection(self)
+
+        fusionpy.fusioncollection.Fields(mc).add(field_definition)
+
+    def test_create_field_type(self):
+        field_type_definition = {
+            "name": "shingleString",
+            "class": "solr.TextField",
+            "positionIncrementGap": "100",
+            "analyzer": {
+                "charFilters": [
+                    {
+                        "class": "solr.PatternReplaceCharFilterFactory",
+                        "replacement": "$1$1",
+                        "pattern": "([a-zA-Z])\\\\1+"
+                    }
+                ],
+                "tokenizer": {
+                    "class": "solr.WhitespaceTokenizerFactory"
+                },
+                "filters": [
+                    {
+                        "class": "solr.WordDelimiterFilterFactory",
+                        "preserveOriginal": "0"
+                    },
+                    {
+                        "class": "solr.ShingleFilterFactory",
+                        "minShingleSize": "2",
+                        "maxShingleSize": "5",
+                        "outputUnigrams": "true"
+                    }
+                ]
+            }
+        }
+
+        class MockCollection:
+            def __init__(self, tc):
+                self.tc = tc
+
+            def request(self, method, path, headers=None, fields=None, body=None, validate=None):
+                self.tc.assertEquals({'add-field-type': field_type_definition}, body)
+
+        mc = MockCollection(self)
+
+        fusionpy.fusioncollection.FieldTypes(mc).add(field_type_definition)

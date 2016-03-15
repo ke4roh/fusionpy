@@ -1,0 +1,13 @@
+#!/usr/bin/env python2
+from fusionpy.fusion import Fusion
+import sys
+
+if len(sys.argv) > 2:
+    print "Too many arguments.  Name at most one collection."
+    sys.exit(2)
+
+collection = None
+if len(sys.argv == 2):
+    collection = sys.argv[1]
+
+Fusion().get_collection(collection).delete_collection(purge=True, solr=True)
