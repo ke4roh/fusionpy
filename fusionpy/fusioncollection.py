@@ -26,7 +26,7 @@ class FusionCollection(FusionRequester):
             path = Template(path).safe_substitute(collection=self.collection_name)
         return super(FusionCollection, self).request(method, path, headers, fields, body, validate)
 
-    def collection_exists(self):
+    def exists(self):
         # curl -D - -u admin:dog8code  http://localhost:8764/api/apollo/collections/
         try:
             resp = self.request('GET', "collections/$collection")
@@ -56,7 +56,7 @@ class FusionCollection(FusionRequester):
            False otherwise
         """
         # Make sure the collection exists
-        if not self.collection_exists():
+        if not self.exists():
             if write:
                 self.create_collection(collection_config=collection)
             else:
@@ -90,15 +90,6 @@ class FusionCollection(FusionRequester):
             collection_config = {"solrParams": {"replicationFactor": 1, "numShards": 1}}
         self.request('PUT',
                      "collections/$collection", body=collection_config)
-        return self
-
-    def ensure_exists(self):
-        """
-        Convenience method to create a collection with default options if it doesn't exist
-        :return: self
-        """
-        if not self.collection_exists():
-            self.create_collection()
         return self
 
     def stats(self):

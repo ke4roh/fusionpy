@@ -6,6 +6,12 @@ import json
 
 
 def configure(args):
+    """
+    Configure collection(s) if not already there, fail if the collection(s) exist but differ from the given
+    configuration.
+
+    :param args: the name of a file with configuration information
+    """
     with open(args[0]) as f:
         cfg = json.load(f)
 
@@ -22,6 +28,11 @@ def configure(args):
 
 
 def delete(args):
+    """
+    Delete a collection if it exists.  If the named collection does not exist, do nothing.
+
+    :param args:  Optional, the name of a single collection to delete
+    """
     if len(args) > 1:
         print "Too many arguments.  Name at most one collection."
         sys.exit(2)
@@ -30,9 +41,15 @@ def delete(args):
     if len(args) == 1:
         collection = args[0]
 
-    Fusion().get_collection(collection).delete_collection(purge=True, solr=True)
+    collection=Fusion().get_collection(collection)
+    if collection.exists():
+        collection.delete_collection(purge=True, solr=True)
 
 def export(args):
+    """
+    Save out the current configuration from Fusion to file and folder(s) to permit re-import
+    :param args:
+    """
     pass
 
 
