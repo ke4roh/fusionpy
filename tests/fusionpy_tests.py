@@ -13,7 +13,8 @@ from fusionpy.connectors import HttpFusionRequester
 test_url = 'http://admin:topSecret5@localhost:8998/api/apollo/collections/phi'
 test_path = os.path.dirname(os.path.realpath(__file__)) + "/"
 http = urllib3.PoolManager(num_pools=1, maxsize=1, retries=0)
-fa = {"fusion_url": test_url, "requester": HttpFusionRequester(test_url, urllib3_pool_manager=http)}
+fa = {"requester": HttpFusionRequester(test_url, urllib3_pool_manager=http)}
+
 
 class FusionTest(TestCase):
     def setUp(self):
@@ -91,7 +92,7 @@ class FusionTest(TestCase):
                 and_return(mime_type="application/json",
                            file_content=test_path + "some_index_pipelines.json")
         f = Fusion(**fa)
-        pipelines = f.get_index_pipelines()
+        pipelines = f.index_pipelines.get_pipelines(include_system=False)
 
         # This reference pipeline file may change, so this test could assert that certain pipelines are present
         # and even go so far as to dissect them, but this is not a test of json.loads().
@@ -102,7 +103,7 @@ class FusionTest(TestCase):
 
         self.assertEqual(len(pipelines), len(pmap))
 
-        allpipelines = f.get_index_pipelines(include_system=True)
+        allpipelines = f.index_pipelines.get_pipelines(include_system=True)
 
         self.assertTrue(len(allpipelines) > len(pipelines))
 
@@ -115,7 +116,7 @@ class FusionTest(TestCase):
                 and_return(mime_type="application/json",
                            file_content=test_path + "some_query_pipelines.json")
         f = Fusion(**fa)
-        pipelines = f.get_query_pipelines()
+        pipelines = f.query_pipelines.get_pipelines(include_system=False)
 
         # This reference pipeline file may change, so this test could assert that certain pipelines are present
         # and even go so far as to dissect them, but this is not a test of json.loads().
@@ -126,7 +127,7 @@ class FusionTest(TestCase):
 
         self.assertEqual(len(pipelines), len(pmap))
 
-        allpipelines = f.get_query_pipelines(include_system=True)
+        allpipelines = f.query_pipelines.get_pipelines(include_system=True)
 
         self.assertTrue(len(allpipelines) > len(pipelines))
 
@@ -151,7 +152,7 @@ class FusionTest(TestCase):
         with open(test_path + "create-pipeline-response.json") as f:
             qp = json.loads(f.read())
 
-        Fusion(**fa).add_query_pipeline(qp)
+        Fusion(**fa).query_pipelines.add_pipeline(qp)
 
 
 class NoNetworkTest(TestCase):
@@ -219,3 +220,59 @@ class NoNetworkTest(TestCase):
         mc = MockCollection(self)
 
         fusionpy.fusioncollection.FieldTypes(mc).add(field_type_definition)
+
+    def test_set_config_file_changed_no_write(self):
+        class MockCollection:
+            def __init__(self, tc):
+                self.tc = tc
+
+            def request(self, method, path, headers=None, fields=None, body=None, validate=None):
+                return MockResponse("<xml></xml>")
+
+        mc = MockCollection(self)
+
+        self.assertFalse(fusionpy.fusioncollection.ConfigFiles(mc).set_config_file("foo", "<xml />", write=False))
+
+    def test_set_config_file_changed_write(self):
+        class MockCollection:
+            def __init__(self, tc):
+                self.tc = tc
+                self.requests = []
+
+            def request(self, method, path, headers=None, fields=None, body=None, validate=None):
+                self.requests.append(
+                    {'method': method, 'path': path, 'headers': headers, 'fields': fields,
+                     'body': body, 'validate': validate})
+                return MockResponse("<xml></xml>")
+
+        mc = MockCollection(self)
+
+        self.assertTrue(fusionpy.fusioncollection.ConfigFiles(mc).set_config_file("foo", "<xml />", write=True))
+        self.assertEquals('PUT', mc.requests[1]['method'])
+
+    def test_set_config_file_new_write(self):
+        class MockCollection:
+            def __init__(self, tc):
+                self.tc = tc
+                self.responses = [MockResponse(status=404), MockResponse("<xml></xml>")]
+                self.requests = []
+
+            def request(self, method, path, headers=None, fields=None, body=None, validate=None):
+                self.requests.append(
+                    {'method': method, 'path': path, 'headers': headers, 'fields': fields,
+                     'body': body, 'validate': validate})
+                response = self.responses[len(self.requests) - 1]
+                if response.status > 299:
+                    raise fusionpy.FusionError(response, request_body=body)
+                return response
+
+        mc = MockCollection(self)
+
+        self.assertTrue(fusionpy.fusioncollection.ConfigFiles(mc).set_config_file("foo", "<xml></xml>", write=True))
+        self.assertEquals('POST', mc.requests[1]['method'])
+
+
+class MockResponse:
+    def __init__(self, data="", status=200):
+        self.data = data
+        self.status = status

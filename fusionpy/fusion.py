@@ -1,30 +1,22 @@
 #!/usr/bin/python
-from __future__ import print_function
-import os
 import json
-from urlparse import urlparse
 from fusionpy import FusionError
 from fusionpy.fusioncollection import FusionCollection
 from fusionpy.connectors import FusionRequester, HttpFusionRequester
 
 
 class Fusion(FusionRequester):
-    def __init__(self, fusion_url=None, requester=None):
+    def __init__(self, requester=None):
         """
-        :param fusion_url: The URL to a collection in Fusion, None to use os.environ["FUSION_API_COLLECTION_URL"]
-        :param urllib3_pool_manager: urllib3.PoolManager() by default.  Anything duckwise-compatible.
+        :param requester: The class responsible for managing connections.  A FusionRequester or HttpFusionRequester
         :return: a Fusion object whose ping responds successfully
         """
-        if fusion_url is None:
-            fusion_url = os.environ.get('FUSION_API_COLLECTION_URL',
-                                        'http://admin:topSecret5@localhost:8764/api/apollo/collections/mycollection')
-        self.fusion_url_parsed = urlparse(fusion_url)
-
         if requester is None:
-            requester = HttpFusionRequester(fusion_url)
+            requester = HttpFusionRequester()
         super(Fusion, self).__init__(requester)
-        self.default_collection = fusion_url.rsplit('/', 1)[-1]
         self.ping()
+        self.index_pipelines = IndexPipelines(self)
+        self.query_pipelines = QueryPipelines(self)
 
     def ping(self):
         """
@@ -71,14 +63,14 @@ class Fusion(FusionRequester):
             for c, ccfg in collections.iteritems():
                 cr = self.get_collection(c).ensure_collection(write=write, **ccfg)
                 if not write and not cr:
-                    return None
+                    return cr
 
         if queryPipelines is not None:
-            if not QueryPipelines(self).ensure_config(queryPipelines, write=write) and not write:
+            if not self.query_pipelines.ensure_config(queryPipelines, write=write):
                 return False
 
         if indexPipelines is not None:
-            if not IndexPipelines(self).ensure_config(indexPipelines, write=write) and not write:
+            if not self.index_pipelines.ensure_config(indexPipelines, write=write):
                 return False
 
         return self
@@ -86,37 +78,18 @@ class Fusion(FusionRequester):
     def get_collection(self, collection=None):
         """Return a FusionCollection for querying, posting, and such"""
         if collection is None or collection == "__default":
-            collection = self.default_collection
+            collection = self.get_default_collection()
         return FusionCollection(self, collection)
 
     def set_admin_password(self, password=None):
         if password is None:
-            if self.fusion_url_parsed.username == "admin":
-                password = self.fusion_url_parsed.password
-            else:
+            password = self.get_admin_password()
+            if password is None:
                 raise FusionError(None, message="No admin password supplied")
 
         resp = self.request('POST', "/api", body={"password": password})
         if resp.status != 201:
             raise FusionError(resp)
-
-    def get_index_pipelines(self, include_system=False):
-        return IndexPipelines(self).get_pipelines(include_system=include_system)
-
-    def get_query_pipelines(self, include_system=False):
-        return QueryPipelines(self).get_pipelines(include_system=include_system)
-
-    def add_query_pipeline(self, query_pipeline):
-        QueryPipelines(self).add_pipeline(query_pipeline)
-
-    def update_query_pipeline(self, query_pipeline):
-        QueryPipelines(self).update_pipeline(query_pipeline)
-
-    def add_index_pipeline(self, index_pipeline):
-        IndexPipelines(self).add_pipeline(index_pipeline)
-
-    def update_index_pipeline(self, index_pipeline):
-        IndexPipelines(self).update_pipeline(index_pipeline)
 
 
 class Pipelines(FusionRequester):

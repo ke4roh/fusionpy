@@ -1,5 +1,4 @@
 #!/usr/bin/python
-from __future__ import print_function
 import json
 from fusionpy import FusionError
 from urllib import urlencode
@@ -20,6 +19,9 @@ class FusionCollection(FusionRequester):
         super(FusionCollection, self).__init__(fusion_instance)
         self.collection_name = collection_name
         self.collection_data = None
+        self.config_files = ConfigFiles(self)
+        self.field_types = FieldTypes(self)
+        self.fields = Fields(self)
 
     def request(self, method, path, headers=None, fields=None, body=None, validate=None):
         if path.find("$") >= 0:
@@ -27,7 +29,9 @@ class FusionCollection(FusionRequester):
         return super(FusionCollection, self).request(method, path, headers, fields, body, validate)
 
     def exists(self):
-        # curl -D - -u admin:dog8code  http://localhost:8764/api/apollo/collections/
+        """
+        :return: True if the collection exists, False otherwise.
+        """
         try:
             resp = self.request('GET', "collections/$collection")
             return True
@@ -64,18 +68,18 @@ class FusionCollection(FusionRequester):
 
         # Update solr-config
         if files is not None:
-            if not ConfigFiles(self).ensure(files, write=write) and not write:
+            if not self.config_files.ensure(files, write=write):
                 return False
 
         # Update field types
         old_schema = self.schema()
         if "fieldTypes" in schema:
-            if not FieldTypes(self).ensure(schema, old_schema, write=write) and not write:
+            if not self.field_types.ensure(schema, old_schema, write=write):
                 return False
 
         # Update fields
         if "fields" in schema:
-            if not Fields(self).ensure(schema, old_schema, write=write) and not write:
+            if not self.fields.ensure(schema, old_schema, write=write):
                 return False
 
         return self
@@ -155,7 +159,7 @@ class AbstractFieldsConfig(FusionRequester):
         :param schema: desired elements of schema to add or modify
         :param old_schema: for expediency, the collection's schema
         :param write: True if changes should be written, False to check if changes are in order
-        :return: False if a change was in order
+        :return: False if a change was in order but not performed
         """
         if old_schema is None:
             old_schema = self.collection.get_schema()
@@ -169,13 +173,15 @@ class AbstractFieldsConfig(FusionRequester):
             ftn = new_f["name"]
             if ftn in old_map:
                 if cmp(new_f, old_map[ftn]) != 0:
-                    configured = False
                     if write:
                         self.update(new_f)
+                    else:
+                        configured = False
             else:
-                configured = False
                 if write:
                     self.add(new_f)
+                else:
+                    configured = False
             if not configured and not write:
                 # If we found a change and aren't writing, then return True
                 return False
@@ -265,7 +271,7 @@ class ConfigFiles(FusionRequester):
         :param content_type: The file's content type
         :param reload: True to request solr reload after the file is populated
         :param write: True if this method should perform the write, false for inspection only
-        :return: True if the file was written (or would have been), false otherwise
+        :return: True if the ending state agrees with the file, False otherwise
         """
         # https://doc.lucidworks.com/fusion/2.1/REST_API_Reference/Solr-Configuration-API.html#SolrConfigurationAPI-CreateorUpdateaFileinZooKeeper
 
@@ -275,7 +281,7 @@ class ConfigFiles(FusionRequester):
             method = 'PUT'  # PUT a file to change
             if oldfile == contents:
                 # no change needed
-                return False
+                return True
         except FusionError as e:
             if e.response.status == 404:
                 # POST a new file
@@ -292,4 +298,4 @@ class ConfigFiles(FusionRequester):
                  urlencode({"reload": reload})),
                 headers={"Content-Type": content_type},
                 body=contents)
-        return True
+        return write

@@ -4,6 +4,7 @@ import urllib3
 from urlparse import urlparse
 from base64 import b64encode
 from fusionpy import FusionError
+import os
 
 """
 Contains Requesters - classes with functions for managing connections to Fusion
@@ -16,6 +17,12 @@ class FusionRequester(object):
     def __init__(self, request_handler):
         self.request_handler = request_handler
 
+    def get_admin_password(self):
+        return self.request_handler.get_admin_password()
+
+    def get_default_collection(self):
+        return self.request_handler.get_default_collection()
+
     def request(self, method, path, headers=None, fields=None, body=None, validate=None):
         return self.request_handler.request(method, path, headers, fields, body, validate)
 
@@ -23,7 +30,11 @@ class HttpFusionRequester(object):
     """
     Running requests through HTTP
     """
-    def __init__(self, fusion_url, urllib3_pool_manager=None):
+    def __init__(self, fusion_url=None, urllib3_pool_manager=None):
+        if fusion_url is None:
+            fusion_url = os.environ.get('FUSION_API_COLLECTION_URL',
+                                'http://admin:topSecret5@localhost:8764/api/apollo/collections/mycollection')
+
         self.fusion_url_parsed = fusion_url_parsed = urlparse(fusion_url)
         self.hostname = fusion_url_parsed.hostname
         self.port = fusion_url_parsed.port
@@ -37,6 +48,15 @@ class HttpFusionRequester(object):
         else:
             self.http = urllib3_pool_manager
 
+    def get_admin_password(self):
+        if self.fusion_url_parsed.username == "admin":
+            return self.fusion_url_parsed.password
+        else:
+            return None
+
+    def get_default_collection(self):
+        return self.fusion_url_parsed.path.rsplit('/', 1)[-1]
+
     def request(self, method, path, headers=None, fields=None, body=None, validate=None):
         """
         Send an authenticated request to the API.
@@ -49,7 +69,7 @@ class HttpFusionRequester(object):
             latter two, they will be encoded as json and the Content-Type header set to "application/json".
         :param validate: A function taking one parameter, the response, which can be inspected. The function returns
             true if the response is valid, false otherwise.
-        :return: response if response.status is in the 200s, FusionError containing the response body otherwise
+        :return: response if response.status is in the 200s, FusionError containing the response otherwise
         """
         h = {"Authorization": "Basic " + self.credentials,
              "Accept": "application/json; q=1.0, text/plain; q=0.7, application/xml; q=0.5, */*; q=0.1"}
