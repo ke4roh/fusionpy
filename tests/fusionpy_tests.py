@@ -142,6 +142,25 @@ class FusionTest(TestCase):
 
         self.assertEquals(json_stats, Fusion(**fa).get_collection().stats())
 
+    def test_get_collections(self):
+        self.server.expect(method='GET', url='/api$'). \
+            and_return(mime_type="application/json",
+                       file_content=test_path + "Fusion_ping_established_response.json")
+        self.server.expect(method='GET', url='/api/apollo/collections/$'). \
+            and_return(mime_type="application/json",
+                       file_content=test_path + "list_of_collections.json")
+        self.server.expect(method='GET', url='/api/apollo/collections/$'). \
+            and_return(mime_type="application/json",
+                       file_content=test_path + "list_of_collections.json")
+        f = Fusion(**fa)
+        c = f.get_collections()
+        self.assertEquals(['solutiondupes'], c)
+
+        c = f.get_collections(include_system=True)
+        self.assertEquals(
+            ["system_metrics", "system_blobs", "solutiondupes", "system_messages", "logs", "audit_logs"],
+            c)
+
     def test_create_query_pipeline(self):
         self.server.expect(method='GET', url='/api$'). \
             and_return(mime_type="application/json",

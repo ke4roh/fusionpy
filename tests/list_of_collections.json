@@ -1,0 +1,72 @@
+[ {
+  "id" : "system_metrics",
+  "createdAt" : "2016-03-16T18:23:19.204Z",
+  "searchClusterId" : "default",
+  "commitWithin" : 10000,
+  "solrParams" : {
+    "name" : "system_metrics",
+    "numShards" : 1,
+    "replicationFactor" : 1
+  },
+  "type" : "METRICS",
+  "metadata" : { }
+}, {
+  "id" : "system_blobs",
+  "createdAt" : "2016-03-16T18:20:28.423Z",
+  "searchClusterId" : "default",
+  "commitWithin" : -1,
+  "solrParams" : {
+    "name" : "system_blobs",
+    "numShards" : 1,
+    "replicationFactor" : 1
+  },
+  "type" : "DATA",
+  "metadata" : { }
+}, {
+  "id" : "solutiondupes",
+  "createdAt" : "2016-03-18T18:53:08.944Z",
+  "searchClusterId" : "default",
+  "solrParams" : {
+    "name" : "solutiondupes",
+    "numShards" : 1,
+    "replicationFactor" : 1
+  },
+  "type" : "DATA",
+  "metadata" : { }
+}, {
+  "id" : "system_messages",
+  "createdAt" : "2016-03-16T18:20:38.455Z",
+  "searchClusterId" : "default",
+  "commitWithin" : -1,
+  "solrParams" : {
+    "name" : "system_messages",
+    "numShards" : 1,
+    "replicationFactor" : 1
+  },
+  "type" : "DATA",
+  "metadata" : { }
+}, {
+  "id" : "logs",
+  "createdAt" : "2016-03-16T18:20:38.602Z",
+  "searchClusterId" : "default",
+  "commitWithin" : 10000,
+  "solrParams" : {
+    "name" : "logs",
+    "numShards" : 1,
+    "replicationFactor" : 1
+  },
+  "type" : "LOGS",
+  "metadata" : { }
+}, {
+  "id" : "audit_logs",
+  "createdAt" : "2016-03-16T18:20:43.291Z",
+  "searchClusterId" : "default",
+  "commitWithin" : 10000,
+  "solrParams" : {
+    "name" : "audit_logs",
+    "numShards" : 1,
+    "replicationFactor" : 1
+  },
+  "type" : "LOGS",
+  "metadata" : { }
+} ]

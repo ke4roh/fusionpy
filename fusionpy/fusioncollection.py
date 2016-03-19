@@ -45,7 +45,7 @@ class FusionCollection(FusionRequester):
         self.request('DELETE',
                      'collections/$collection?' + urlencode({"purge": purge, "solr": solr}))
 
-    def ensure_collection(self, collection, schema, files=None, write=True):
+    def ensure_collection(self, collection, schema, files=None, features=None, write=True):
         """
         Idempotent initialization of the collection, only writing new or changed things, not deleting.
 
@@ -55,6 +55,8 @@ class FusionCollection(FusionRequester):
            fields in the collection's schema match with the fields in this parameter.  "fieldTypes" will be processed similarly.
         :param files: if specified, a string containing the name of the folder in which to find files to
            be synced to the solr-config.
+        :param features: if specified, a dictionary containing feature names as keys and a boolean indicating their
+           whether each is enabled.
         :param write: False to test if the configuration differs from expected, True to set the config.
         :return: self (evaluates as True) if the collection is ready, None (evaluates as False) if it does not exist,
            False otherwise
@@ -65,6 +67,10 @@ class FusionCollection(FusionRequester):
                 self.create_collection(collection_config=collection)
             else:
                 return None
+
+        if features is not None:
+            if not self.ensure_features(features):
+                return False
 
         # Update solr-config
         if files is not None:
@@ -95,6 +101,26 @@ class FusionCollection(FusionRequester):
         self.request('PUT',
                      "collections/$collection", body=collection_config)
         return self
+
+    def ensure_features(self, features, write=True):
+        live_features = self.get_features()
+        if cmp(live_features, features) != 0:
+            if write:
+                self.set_features(features)
+            else:
+                return False
+        return True
+
+    def set_features(self, features):
+        for feature, enabled in features.iteritems():
+            self.request('PUT', 'collections/$collection/features/' + feature, body={"enabled": enabled})
+
+    def get_features(self):
+        resp = self.request('GET', 'collections/$collection/features')
+        features = {}
+        for feature in json.loads(resp.data):
+            features[feature['name']] = feature['enabled']
+        return features
 
     def stats(self):
         resp = self.request('GET',
@@ -144,7 +170,7 @@ class FusionCollection(FusionRequester):
                               message="Submitted %d documents to index, but wrote %d" % (len(docs), wrote))
 
     def schema(self):
-        resp = self.request('GET', "solr/$collection/schema" )
+        resp = self.request('GET', "solr/$collection/schema")
         return json.loads(resp.data)["schema"]
 
 

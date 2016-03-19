@@ -3,9 +3,10 @@ import json
 from fusionpy import FusionError
 from fusionpy.fusioncollection import FusionCollection
 from fusionpy.connectors import FusionRequester, HttpFusionRequester
-
+import re
 
 class Fusion(FusionRequester):
+
     def __init__(self, requester=None):
         """
         :param requester: The class responsible for managing connections.  A FusionRequester or HttpFusionRequester
@@ -74,6 +75,18 @@ class Fusion(FusionRequester):
                 return False
 
         return self
+
+    def get_collections(self, include_system=False):
+        """
+        :param include_system: True if system collections should be included. Default is False
+        :return: A list of the names of the collections
+        """
+        system_collections = re.compile('_signals$|_signals_aggr$|^system_|_logs$|^logs$')
+        collections = []
+        for c in json.loads(self.request('GET', 'collections/').data):
+            if include_system or not system_collections.search(c["id"]):
+                collections.append(c["id"])
+        return collections
 
     def get_collection(self, collection=None):
         """Return a FusionCollection for querying, posting, and such"""

@@ -41,16 +41,30 @@ def delete(args):
     if len(args) == 1:
         collection = args[0]
 
-    collection=Fusion().get_collection(collection)
+    collection = Fusion().get_collection(collection)
     if collection.exists():
         collection.delete_collection(purge=True, solr=True)
+
 
 def export(args):
     """
     Save out the current configuration from Fusion to file and folder(s) to permit re-import
-    :param args:
+    :param args: either a file name, preceeded by @, or a json string of elements to
     """
     pass
+
+
+def dir(args):
+    """
+    Write to stdout a json file listing the collections and pipelines available for export.
+    This file can then be pruned to only the things that should be collected.
+    """
+    f = Fusion()
+    print json.dumps({
+        "collections": f.get_collections(),
+        "indexPipelines": [p["id"] for p in f.index_pipelines.get_pipelines()],
+        "queryPipelines": [p["id"] for p in f.query_pipelines.get_pipelines()]
+    }, indent=True, separators=(',', ':'), sort_keys=True)
 
 
 def print_help(args):
@@ -59,8 +73,12 @@ def print_help(args):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2 or sys.argv[1] not in dir(sys.modules[__name__]) or sys.argv[1] == "help":
+    try:
+        if sys.argv[1] == "help" or sys.argv[1] == "?":
+            sys.argv[1] = "print_help"
+        globals()[sys.argv[1]](sys.argv[2:])
+    except IndexError as ie:
         print_help([])
-        sys.exit(1)
-    # Call the requested function
-    globals()[sys.argv[1]](sys.argv[2:])
+    except Exception as e:
+        print_help([])
+        raise e
