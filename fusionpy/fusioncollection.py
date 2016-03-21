@@ -30,16 +30,22 @@ class FusionCollection(FusionRequester):
 
     def exists(self):
         """
-        :return: True if the collection exists, False otherwise.
+        :return: True if the collection exists, False otherwise
         """
         try:
-            resp = self.request('GET', "collections/$collection")
-            return True
+            return self.get_config() and True
         except FusionError as fe:
             if fe.response.status == 404:
                 return False
             else:
                 raise
+
+    def get_config(self):
+        """
+        :return: The json config for the collection (which evaluates True) if the collection exists, False otherwise.
+        """
+        resp = self.request('GET', "collections/$collection")
+        return json.loads(resp.data)
 
     def delete_collection(self, purge=False, solr=False):
         self.request('DELETE',
@@ -271,11 +277,10 @@ class ConfigFiles(FusionRequester):
                     return False
         return configured
 
-    def config_files(self):
-        resp = json.loads(
-            self.request(
-                'GET',
-                "collections/$collection/solr-config"))
+    def dir(self):
+        resp = self.request(
+            'GET',
+            "collections/$collection/solr-config")
         rd = json.loads(resp.data)
         if "errors" in rd:
             raise FusionError(resp)
@@ -284,7 +289,8 @@ class ConfigFiles(FusionRequester):
     def get_config_file(self, filename):
         resp = self.request('GET',
                             "collections/$collection/solr-config/%s" %
-                            filename)
+                            filename,
+                            headers={"Accept": "*/*"})
         return resp.data
 
     def set_config_file(self, filename, contents, content_type="application/xml", reload=True, write=True):
