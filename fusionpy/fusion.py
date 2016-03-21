@@ -30,7 +30,7 @@ class Fusion(FusionRequester):
             if fe.response is not None and fe.response.status > 200:
                 raise FusionError(fe.response, message="Fusion is not responding to status checks.")
             else:
-                raise fe
+                raise
 
         rd = json.loads(resp.data)
         for thing, stats in rd["status"].items():

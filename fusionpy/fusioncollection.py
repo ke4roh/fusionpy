@@ -39,7 +39,7 @@ class FusionCollection(FusionRequester):
             if fe.response.status == 404:
                 return False
             else:
-                raise fe
+                raise
 
     def delete_collection(self, purge=False, solr=False):
         self.request('DELETE',
@@ -313,7 +313,7 @@ class ConfigFiles(FusionRequester):
                 # POST a new file
                 method = 'POST'
             else:
-                raise e
+                raise
 
         # submit the file
         if write:

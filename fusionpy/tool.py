@@ -81,4 +81,4 @@ if __name__ == "__main__":
         print_help([])
     except Exception as e:
         print_help([])
-        raise e
+        raise
