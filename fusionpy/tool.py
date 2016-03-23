@@ -8,16 +8,6 @@ import errno
 import os
 
 
-def __mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:  # Python >2.5
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
-
-
 def configure(args):
     """
     Configure collection(s) if not already there, fail if the collection(s) exist but differ from the given
@@ -26,7 +16,7 @@ def configure(args):
     :param args: the name of a file with configuration information
     """
     with open(args[0]) as f:
-        cfg = json.load(f)
+        cfg = __ascii_keys(json.load(f))
 
     fusion = Fusion().ensure_config(write=False, **cfg)
     if fusion is None:
@@ -67,42 +57,7 @@ def export(args):
     with open(args[0]) as fh:
         things_to_save = json.load(fh)
 
-    f = Fusion()
-
-    system_config = {}
-    if 'collections' in things_to_save:
-        system_config["collections"] = {}
-        for c in things_to_save['collections']:
-            fc = f.get_collection(c)
-            system_config["collections"][c] = fc.get_config()
-            path = "fusion-config/" + c
-            __mkdir_p(path)
-            system_config["collections"]["files"] = path
-            for cf in [x["name"] for x in fc.config_files.dir() if
-                       x["name"] != "managed-schema" and
-                               not x['isDir'] and
-                               (x['version'] > 0
-                                or x["name"] not in ["currency.xml",
-                                                     "elevate.xml",
-                                                     "params.json",
-                                                     "protwords.txt",
-                                                     "solrconfig.xml",
-                                                     "stopwords.txt",
-                                                     "synonyms.txt"])]:
-                with open(path + "/" + cf, "w") as fh:
-                    fh.write(fc.config_files.get_config_file(cf))
-            schema = fc.schema()
-            system_config["collections"]["fields"] = schema["fields"]
-            system_config["collections"]["fieldTypes"] = schema["fieldTypes"]
-
-    if 'indexPipelines' in things_to_save:
-        system_config["indexPipelines"] = [p for p in f.index_pipelines.get_pipelines() if
-                                           p["id"] in things_to_save['indexPipelines']]
-    if 'queryPipelines' in things_to_save:
-        system_config["queryPipelines"] = [p for p in f.query_pipelines.get_pipelines() if
-                                           p["id"] in things_to_save['queryPipelines']]
-
-    print json.dumps(system_config, indent=True, separators=(',', ':'), sort_keys=True)
+    Fusion().export_config(things_to_save)
 
 
 def dir(args):
@@ -121,6 +76,22 @@ def dir(args):
 def print_help(args):
     print "Usage"
     print "  python -m fusionpy.tool <verb> [argument] [...]"
+
+
+def __ascii_keys(athing):
+    # json will not always load these as regular strings.  Python2 (at least) requires strings, not unicode,
+    # for the keys going in to the ** parameters
+    if type(athing) is dict:
+        cc = {}
+        for k, v in athing.items():
+            cc[k.encode('ascii', 'replace')] = __ascii_keys(v)
+    elif type(athing) is list:
+        cc = []
+        for x in athing:
+            cc.append(__ascii_keys(x))
+    else:
+        return athing
+    return cc
 
 
 if __name__ == "__main__":

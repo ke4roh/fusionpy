@@ -4,9 +4,11 @@ from fusionpy import FusionError
 from fusionpy.fusioncollection import FusionCollection
 from fusionpy.connectors import FusionRequester, HttpFusionRequester
 import re
+import os
+import errno
+
 
 class Fusion(FusionRequester):
-
     def __init__(self, requester=None):
         """
         :param requester: The class responsible for managing connections.  A FusionRequester or HttpFusionRequester
@@ -75,6 +77,44 @@ class Fusion(FusionRequester):
                 return False
 
         return self
+
+    def export_config(self, things_to_save, config_file_path="fusion-config/"):
+        system_config = {}
+        if 'collections' in things_to_save:
+            system_config["collections"] = {}
+            for c in things_to_save['collections']:
+                fc = self.get_collection(c)
+                system_config["collections"][c] = {}
+                system_config["collections"][c]['collection'] = fc.get_config()
+                path = config_file_path + c
+                mkdir_p(path)
+                system_config["collections"][c]["files"] = path
+                for cf in [x["name"] for x in fc.config_files.dir() if
+                           x["name"] != "managed-schema" and
+                                   not x['isDir'] and
+                                   (x['version'] > 0
+                                    or x["name"] not in ["currency.xml",
+                                                         "elevate.xml",
+                                                         "params.json",
+                                                         "protwords.txt",
+                                                         "solrconfig.xml",
+                                                         "stopwords.txt",
+                                                         "synonyms.txt"])]:
+                    with open(path + "/" + cf, "w") as fh:
+                        fh.write(fc.config_files.get_config_file(cf))
+                schema = fc.schema()
+                system_config["collections"][c]['schema'] = {}
+                system_config["collections"][c]['schema']["fields"] = schema["fields"]
+                system_config["collections"][c]['schema']["fieldTypes"] = schema["fieldTypes"]
+
+        if 'indexPipelines' in things_to_save:
+            system_config["indexPipelines"] = [p for p in self.index_pipelines.get_pipelines() if
+                                               p["id"] in things_to_save['indexPipelines']]
+        if 'queryPipelines' in things_to_save:
+            system_config["queryPipelines"] = [p for p in self.query_pipelines.get_pipelines() if
+                                               p["id"] in things_to_save['queryPipelines']]
+
+        print json.dumps(system_config, indent=True, separators=(',', ':'), sort_keys=True)
 
     def get_collections(self, include_system=False):
         """
@@ -159,3 +199,13 @@ class IndexPipelines(Pipelines):
         return [x for x in super(IndexPipelines, self).get_pipelines() if
                 include_system or
                 len([y for y in ['_aggr', '_signals_ingest', '_system'] if x['id'].startswith(y)]) == 0]
+
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
