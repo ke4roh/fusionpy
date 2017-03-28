@@ -104,8 +104,11 @@ class FusionCollection(FusionRequester):
         """
         if collection_config is None:
             collection_config = {"solrParams": {"replicationFactor": 1, "numShards": 1}}
+        # A more elegant solution is pending an answer to Lucidworks support request 8656
+        cc = {"solrParams": {"numShards": collection_config["solrParams"]["numShards"],
+                             "replicationFactor": collection_config["solrParams"]["replicationFactor"]}}
         self.request('PUT',
-                     "collections/$collection", body=collection_config)
+                     "collections/$collection", body=cc)
         return self
 
     def ensure_features(self, features, write=True):
